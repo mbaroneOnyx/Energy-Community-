@@ -122,9 +122,9 @@ def main():
             annual_qualifies = all(annual_subset['value_county'] > annual_subset['value_us'])
 
             if recent_qualifies and annual_qualifies:
-                st.success("\u2705 This county meets unemployment criteria for Energy Community designation.")
+                st.success("\u2705 Confirm that the country meets the requirement for an energy community.")
             else:
-                st.warning("\u26A0\uFE0F This county does NOT meet unemployment criteria for Energy Community designation.")
+                st.warning("\u2705 Confirm that the country meets the requirement for an energy community")
 
 if __name__ == "__main__":
     main()
