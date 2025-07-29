@@ -1,6 +1,7 @@
 import streamlit as st
 import requests
 import pandas as pd
+from datetime import datetime, timedelta
 
 API_KEY = '0c4ef6ee25e94f3db32ffac1ce175e8f'
 
@@ -41,13 +42,18 @@ def process_data(raw_data):
     return df[['date', 'year', 'month_num', 'value']]
 
 def main():
-    st.title("📊 County vs US Unemployment")
+    st.title("\U0001F4CA County vs US Unemployment")
 
     fips_df = load_fips_data()
 
     st.markdown("#### Select the state and county (as listed on the BLS website):")
     state = st.selectbox("State", sorted(fips_df['state'].unique()))
     county = st.selectbox("County", sorted(fips_df[fips_df['state'] == state]['county'].unique()))
+
+    today = datetime.today()
+    curr_year = st.number_input("Current Year", min_value=2018, max_value=today.year, value=today.year)
+    curr_month = st.selectbox("Current Month", options=list(range(1, 13)), index=today.month - 1,
+                              format_func=lambda x: datetime(1900, x, 1).strftime('%B'))
 
     selected_row = fips_df[(fips_df['state'] == state) & (fips_df['county'] == county)]
 
@@ -60,11 +66,11 @@ def main():
             county_series = get_series_id(state_fips, county_fips)
             us_series = "LNS14000000"
 
-            county_data = fetch_bls_data(county_series, "2018", "2025")
-            us_data = fetch_bls_data(us_series, "2018", "2025")
+            county_data = fetch_bls_data(county_series, "2018", str(curr_year))
+            us_data = fetch_bls_data(us_series, "2018", str(curr_year))
 
             if not county_data or not us_data:
-                st.error("❌ Failed to fetch data. Check your FIPS codes or API key.")
+                st.error("\u274C Failed to fetch data. Check your FIPS codes or API key.")
                 return
 
             df_county = process_data(county_data).rename(columns={"value": "value_county"})
@@ -75,7 +81,7 @@ def main():
             merged['delta'] = merged['value_county'] - merged['value_us']
 
             annual = (
-                merged[(merged['year'] >= 2018) & (merged['year'] <= 2024)]
+                merged[(merged['year'] >= 2018) & (merged['year'] <= curr_year)]
                 .groupby('year')[['value_county', 'value_us']]
                 .mean()
                 .reset_index()
@@ -83,7 +89,7 @@ def main():
             annual['delta'] = annual['value_county'] - annual['value_us']
             annual['year'] = annual['year'].astype(int)
 
-            st.subheader("📅 Annual Unemployment Averages (2018–2024)")
+            st.subheader(f"\U0001F4C5 Annual Unemployment Averages (2018–{curr_year})")
             st.dataframe(
                 annual.rename(columns={
                     'value_county': label,
@@ -93,10 +99,11 @@ def main():
                 use_container_width=True
             )
 
-            recent = merged.sort_values(by="date", ascending=False).head(6)
+            recent_cutoff = datetime(curr_year, curr_month, 1)
+            recent = merged[merged['date'] < recent_cutoff].sort_values(by="date", ascending=False).head(6)
             recent['month_str'] = recent['date'].dt.strftime('%B %Y')
 
-            st.subheader("📆 Most Recent 6 Months (Monthly Data)")
+            st.subheader("\U0001F4C6 Most Recent 6 Months (Monthly Data)")
             st.dataframe(
                 recent[['month_str', 'value_county', 'value_us', 'delta']].rename(columns={
                     'month_str': 'Date',
@@ -108,19 +115,16 @@ def main():
             )
 
             last_3_months = recent.head(3)
-            past_3_years = annual[annual['year'].isin([2021, 2022, 2023])]
+            past_3_years = list(range(curr_year - 3, curr_year))
+            annual_subset = annual[annual['year'].isin(past_3_years)]
 
             recent_qualifies = all(last_3_months['value_county'] > last_3_months['value_us'])
-            annual_qualifies = all(past_3_years['value_county'] > past_3_years['value_us'])
+            annual_qualifies = all(annual_subset['value_county'] > annual_subset['value_us'])
 
             if recent_qualifies and annual_qualifies:
-                st.success("✅ This county meets unemployment criteria for Energy Community designation.")
+                st.success("\u2705 This county meets unemployment criteria for Energy Community designation.")
             else:
-                st.warning("⚠️ This county does NOT meet unemployment criteria for Energy Community designation.")
+                st.warning("\u26A0\uFE0F This county does NOT meet unemployment criteria for Energy Community designation.")
 
 if __name__ == "__main__":
     main()
-
-
-
-#streamlit run adder_interface.py
