@@ -41,7 +41,7 @@ def process_data(raw_data):
     return df[['date', 'year', 'month_num', 'value']]
 
 def main():
-    st.title("📊 County vs US Unemployment Comparison with Energy Community Flag")
+    st.title("📊 County vs US Unemployment")
 
     fips_df = load_fips_data()
 
